@@ -1,0 +1,7 @@
+.backups
+.old
+.tmp
+group_vars
+host_vars
+inventory
+ansible.cfg

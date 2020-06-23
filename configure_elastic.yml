@@ -1,0 +1,106 @@
+---
+- name: configure elastic search instances
+  become: true
+  hosts: all
+  vars:
+    cluster_name: harvester
+  tasks:
+    - name: debug info
+      debug:
+        var: ansible_facts
+        verbosity: 2
+
+    - name: install elastic search package
+      yum:
+        name:
+          - java-11-openjdk-headless
+          - elasticsearch
+          - tmux
+          - firewalld
+        state: latest
+      notify: start and enable elasticsearch
+
+    - name: setup configuration file for elastic cluster
+      lineinfile:
+        line: "cluster.name: {{ cluster_name }}"
+        regexp: "^cluster.name:"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      notify: restart elasticsearch
+
+    - name: setup configuration file for elastic name
+      lineinfile:
+        line: "node.name: {{ ansible_facts['hostname'] }}"
+        regexp: "^node.name:"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      notify: restart elasticsearch
+
+    - name: setup configuration file for elastic type
+      lineinfile:
+        line: "node.data: true"
+        regexp: "^node.data:"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      notify: restart elasticsearch
+
+    - name: setup configuration file for elastic master
+      lineinfile:
+        line: "node.master: true"
+        regexp: "^node.master:"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      when: inventory_hostname in groups['masters']
+      notify: restart elasticsearch
+
+    - name: setup configuration file for elastic not master
+      lineinfile:
+        line: "node.master: false"
+        regexp: "^node.master:"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      when: inventory_hostname not in groups['masters']
+      notify: restart elasticsearch
+
+    - name: setup elastic interfaces
+      lineinfile:
+        line: "network.host: [_local_, _site_]"
+        regexp: "^network.host:"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      notify: restart elasticsearch
+
+    - name: setup elastic node ip addresses
+      lineinfile:
+        line: "discovery.zen.hosts_provider: file"
+        regexp: "^#?discovery.zen.hosts_provider: file"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      notify: restart elasticsearch
+
+    - name: setup unicast_hosts.txt for elastic
+      template:
+        src: files/unicast_hosts.txt.j2
+        dest: /etc/elasticsearch/unicast_hosts.txt
+        owner: root
+        group: root
+        mode: '0644'
+
+    - name: setup elastic search security
+      lineinfile:
+        line: "xpack.monitoring.enabled: true"
+        regexp: "^xpack.monitoring.enabled:"
+        path: "/etc/elasticsearch/elasticsearch.yml"
+      notify: restart elasticsearch
+
+    - name: allow elasticsearch traffic
+      firewalld:
+        service: elasticsearch
+        permanent: true
+        immediate: true
+        state: enabled
+
+  handlers:
+    - name: start and enable elasticsearch
+      service:
+        name: elasticsearch
+        state: started
+        enabled: true
+
+    - name: restart elasticsearch
+      service:
+        name: elasticsearch
+        state: restarted

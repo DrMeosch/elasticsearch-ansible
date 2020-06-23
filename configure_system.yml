@@ -1,0 +1,43 @@
+---
+- name: configure the system
+  hosts: all
+  become: true
+  vars:
+  roles:
+    - linux-system-roles.timesync
+  tasks:
+    - name: set timezone
+      timezone:
+        name: Europe/Berlin
+  pre_tasks:
+    - name: Register and auto-subscribe to available content.
+      redhat_subscription:
+        state: present
+        username: "{{ rhsm_username }}"
+        password: "{{ rhsm_password }}"
+        auto_attach: true
+  post_tasks:
+    - name: setup elastic repo
+      yum_repository:
+        name: elasticsearch-6.x
+        description: "Elasticsearch repository for 6.x packages"
+        baseurl: https://artifacts.elastic.co/packages/6.x/yum
+        gpgcheck: 1
+        gpgkey: https://artifacts.elastic.co/GPG-KEY-elasticsearch
+        enabled: 1
+    - name: update the system
+      yum:
+        name: '*'
+        state: latest
+
+    - name: Check for reboot hint.
+      shell: |
+        LAST=$(rpm -q --last kernel|awk 'NR==1{sub(/kernel-/,""); print $1}')
+        CURRENT=$(uname -r)
+        if [ $LAST != $CURRENT ]; then echo 'reboot';else echo 'no';fi
+      ignore_errors: true
+      register: reboot_hint
+
+    - name: reboot if needed
+      reboot:
+      when: reboot_hint.stdout.find("reboot") != -1

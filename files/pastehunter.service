@@ -1,0 +1,14 @@
+[Unit]
+Description=PasteHunter
+
+[Service]
+WorkingDirectory=/home/elk/PasteHunter/apps
+ExecStart=/home/elk/PasteHunter/envs/bin/python3.6 /home/elk/PasteHunter/apps/pastehunter-cli
+User=elk
+Group=elk
+# Restart=always
+Type=simple
+StandardInput=tty-force
+
+[Install]
+WantedBy=multi-user.target

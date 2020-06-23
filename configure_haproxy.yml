@@ -1,0 +1,34 @@
+---
+- name: setup load balancers
+  hosts: balancers
+  become: true
+  tasks:
+    - name: install haproxy
+      yum:
+        name: haproxy
+        state: latest
+      notify: start and enable haproxy
+
+    - name: copy config file for haproxy
+      template:
+        src: files/haproxy.cfg.j2
+        dest: /etc/haproxy/haproxy.cfg
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart haproxy
+    - name: make haproxy great again
+      seboolean:
+        name: haproxy_connect_any
+        state: true
+        persistent: true
+  handlers:
+    - name: start and enable haproxy
+      service:
+        name: haproxy
+        state: restarted
+        enabled: true
+    - name: restart haproxy
+      service:
+        name: haproxy
+        state: restarted

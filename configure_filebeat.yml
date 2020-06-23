@@ -1,0 +1,41 @@
+---
+- name: configure elastic search instances
+  become: true
+  hosts: monster
+  vars:
+    cluster_name: harvester
+  tasks:
+    - name: debug info
+      debug:
+        var: ansible_facts
+        verbosity: 2
+
+    - name: install filebeat package
+      yum:
+        name:
+          - filebeat
+          - tmux
+          - firewalld
+        state: latest
+      notify: start and enable filebeat
+
+    - name: setup filebeat for sonar fdns++
+      template:
+        src: files/filebeat.yml
+        dest: /etc/filebeat/filebeat.yml
+        owner: root
+        group: root
+        mode: '0644'
+      notify: restart filebeat
+
+  handlers:
+    - name: start and enable filebeat
+      service:
+        name: filebeat
+        state: started
+        enabled: true
+
+    - name: restart filebeat
+      service:
+        name: filebeat
+        state: restarted
